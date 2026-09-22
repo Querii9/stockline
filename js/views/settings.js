@@ -3,7 +3,22 @@ import { aiErrorMessage, modelLabel, testConnection } from "../ai.js";
 import { buildDemoData, translateDemo } from "../demo-data.js";
 import { categoryLabel } from "../forecast.js";
 import { LANGS, getLang, setLang, t, th } from "../i18n.js";
-import { exportJSON, getApiKey, getForecasts, getModel, getPrefs, getState, mutate, replaceAll, setApiKey, setPrefs } from "../store.js";
+import {
+  exportJSON,
+  getApiKey,
+  getForecasts,
+  getModel,
+  getPrefs,
+  getProvider,
+  getState,
+  hasApiKey,
+  mutate,
+  replaceAll,
+  setApiKey,
+  setModel,
+  setPrefs,
+  setProvider,
+} from "../store.js";
 import { confirmDialog, icon, on, openModal, rerender, toast, withBusy } from "../ui.js";
 import { downloadFile, esc, isoDate, round } from "../utils.js";
 import { resetAnalysis } from "./dashboard.js";
@@ -22,25 +37,38 @@ function refresh() {
 const mask = (key) => `${key.slice(0, 10)}…${key.slice(-4)}`;
 
 function body() {
-  const key = getApiKey();
-  const model = getModel();
+  const provider = getProvider();
+  const cfg = CONFIG.ai.providers[provider];
+  const key = getApiKey(provider);
+  const model = getModel(provider);
   const theme = getPrefs().theme ?? "auto";
   const option = (value, label, selected) => `<option value="${esc(value)}" ${value === selected ? "selected" : ""}>${esc(label)}</option>`;
+  const vars = { provider: cfg.label, company: cfg.company, site: new URL(cfg.keyUrl).host };
 
   return `
     <section class="settings-section">
       <h3>${icon("sparkles", 16)} ${th("settings.ai")}</h3>
-      <p class="ai-state ${key ? "live" : "demo"}"><i class="dot"></i>${key ? th("settings.aiLive", { model: modelLabel(model) }) : th("settings.aiDemo")}</p>
+      <div class="field">${th("settings.provider")}
+        <div class="segmented provider-switch" role="group" aria-label="${th("settings.provider")}">
+          ${Object.entries(CONFIG.ai.providers)
+            .map(
+              ([id, p]) => `<button type="button" data-action="set-provider" data-value="${esc(id)}" class="${id === provider ? "active" : ""}" aria-pressed="${id === provider}">
+                ${esc(p.label)}${hasApiKey(id) ? ' <i class="dot key-dot"></i>' : ""}</button>`,
+            )
+            .join("")}
+        </div>
+      </div>
+      <p class="ai-state ${key ? "live" : "demo"}"><i class="dot"></i>${key ? th("settings.aiLive", { ...vars, model: modelLabel(model) }) : th("settings.aiDemo", vars)}</p>
       <form class="key-row" data-submit="save-key" autocomplete="off">
         <input class="input" type="password" name="key" spellcheck="false" autocomplete="off"
-          placeholder="${key ? esc(mask(key)) : "sk-ant-…"}" aria-label="${th("settings.apiKey")}">
+          placeholder="${esc(key ? mask(key) : cfg.keyHint)}" aria-label="${th("settings.apiKey", vars)}">
         <button class="btn btn-primary" type="submit">${th("settings.saveKey")}</button>
       </form>
-      <p class="hint">${th("settings.apiKeyHelp")}
-        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">${th("settings.apiKeyGet")} ↗</a></p>
+      <p class="hint">${th("settings.apiKeyHelp", vars)}
+        <a href="${esc(cfg.keyUrl)}" target="_blank" rel="noopener">${th("settings.apiKeyGet", vars)} ↗</a></p>
       <div class="row wrap">
         <label class="field grow">${th("settings.model")}
-          <select class="input" data-change="set-model">${CONFIG.ai.models.map((m) => option(m.id, m.label, model)).join("")}</select>
+          <select class="input" data-change="set-model">${cfg.models.map((m) => option(m.id, m.label, model)).join("")}</select>
         </label>
       </div>
       ${
@@ -125,7 +153,8 @@ on("submit", {
 
 on("change", {
   "set-model": (el) => {
-    setPrefs({ model: el.value });
+    setModel(el.value);
+    resetAnalysis();
     refresh();
     rerender();
   },
@@ -143,6 +172,12 @@ on("change", {
 
 on("click", {
   "open-settings": () => openSettings(),
+  "set-provider": (el) => {
+    setProvider(el.dataset.value);
+    resetAnalysis();
+    refresh();
+    rerender();
+  },
   "test-key": (el) =>
     withBusy(el, async () => {
       try {

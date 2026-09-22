@@ -1,6 +1,6 @@
 // Entry point: boots the app, draws the header and routes between views (#/dashboard, #/inventory…).
 import { CONFIG } from "./config.js";
-import { isLive, modelLabel } from "./ai.js";
+import { isLive, modelLabel, providerLabel } from "./ai.js";
 import { buildDemoData } from "./demo-data.js";
 import { LANGS, getLang, initI18n, t, th } from "./i18n.js";
 import { getModel, getPrefs, loadState, replaceAll, setPrefs, subscribe } from "./store.js";
@@ -53,7 +53,7 @@ function renderChrome(route) {
   const badge = document.getElementById("ai-badge");
   badge.className = `ai-badge ${live ? "live" : "demo"}`;
   badge.title = live ? modelLabel(getModel()) : "";
-  badge.innerHTML = `<i class="dot"></i>${th(live ? "ai.live" : "ai.demo")}`;
+  badge.innerHTML = `<i class="dot"></i>${live ? `${th("ai.live")} · ${esc(providerLabel())}` : th("ai.demo")}`;
 
   const lang = document.getElementById("lang-select");
   lang.innerHTML = LANGS.map((l) => `<option value="${l.id}" ${l.id === getLang() ? "selected" : ""}>${l.id.toUpperCase()}</option>`).join("");

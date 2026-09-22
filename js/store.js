@@ -5,7 +5,7 @@ import { isoDate, uid } from "./utils.js";
 
 const DATA_KEY = "stockline.data.v1";
 const PREFS_KEY = "stockline.prefs.v1";
-const API_KEY = "stockline.apiKey";
+const API_KEY = "stockline.apiKey"; // + ".<provider>" (the bare key is the old Claude-only one)
 
 // localStorage can throw (private mode, blocked storage): the app keeps working in memory.
 const storage = {
@@ -228,7 +228,33 @@ export function setPrefs(patch) {
   storage.set(PREFS_KEY, JSON.stringify({ ...getPrefs(), ...patch }));
 }
 
-export const getApiKey = () => storage.get(API_KEY) ?? "";
-export const hasApiKey = () => Boolean(getApiKey());
-export const setApiKey = (key) => (key ? storage.set(API_KEY, key.trim()) : storage.remove(API_KEY));
-export const getModel = () => getPrefs().model ?? CONFIG.ai.model;
+const PROVIDERS = CONFIG.ai.providers;
+
+/** "anthropic" | "openai" | "gemini" (see config.js). */
+export function getProvider() {
+  const saved = getPrefs().provider;
+  return PROVIDERS[saved] ? saved : CONFIG.ai.provider;
+}
+
+export const setProvider = (provider) => PROVIDERS[provider] && setPrefs({ provider });
+
+// One key per provider, stored only in this browser.
+export function getApiKey(provider = getProvider()) {
+  return storage.get(`${API_KEY}.${provider}`) ?? (provider === "anthropic" ? storage.get(API_KEY) : null) ?? "";
+}
+
+export const hasApiKey = (provider = getProvider()) => Boolean(getApiKey(provider));
+
+export function setApiKey(key, provider = getProvider()) {
+  if (key) storage.set(`${API_KEY}.${provider}`, key.trim());
+  else storage.remove(`${API_KEY}.${provider}`);
+  if (provider === "anthropic") storage.remove(API_KEY);
+}
+
+export function getModel(provider = getProvider()) {
+  const prefs = getPrefs();
+  const saved = prefs.models?.[provider] ?? (provider === "anthropic" ? prefs.model : undefined);
+  return PROVIDERS[provider].models.some((m) => m.id === saved) ? saved : PROVIDERS[provider].model;
+}
+
+export const setModel = (model, provider = getProvider()) => setPrefs({ models: { ...getPrefs().models, [provider]: model } });

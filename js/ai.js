@@ -1,111 +1,57 @@
 // AI layer. Every feature has two paths:
-//   · live → Claude API, called straight from the browser with the user's own key
+//   · live → the chosen provider (Claude, OpenAI or Gemini), called straight from the browser
+//            with the user's own key, through a small adapter in js/providers/
 //   · demo → rules/samples from ai-demo.js when there is no key
-// The views never need to know which one ran: results carry a `demo` flag.
+// Prompts and JSON schemas live here and are shared by every provider.
+// The views never need to know which path ran: results carry a `demo` flag.
 import { CONFIG } from "./config.js";
 import * as demo from "./ai-demo.js";
+import { AIError } from "./ai-errors.js";
 import { buildSnapshot } from "./forecast.js";
 import { getLang, t } from "./i18n.js";
-import { getApiKey, getForecasts, getModel, getState, hasApiKey } from "./store.js";
+import { getForecasts, getModel, getProvider, getState, hasApiKey } from "./store.js";
 import { isoDate, wait } from "./utils.js";
 
-export class AIError extends Error {
-  constructor(code, detail = "") {
-    super(detail || code);
-    this.code = code;
-    this.detail = detail;
-  }
-}
+export { AIError };
 
 const LANGUAGE_NAMES = { ca: "Catalan", es: "Spanish", en: "English" };
-const FALLBACK_MODELS = new Set(["claude-opus-5", "claude-fable-5-1"]);
-const supportsEffort = (model) => !/haiku|sonnet-4-5|opus-4-1|claude-3/.test(model);
 
 export const isLive = () => hasApiKey();
-export const modelLabel = (id) => CONFIG.ai.models.find((m) => m.id === id)?.label ?? id;
+export const providerLabel = (provider = getProvider()) => CONFIG.ai.providers[provider]?.label ?? provider;
 
-// ── Client ───────────────────────────────────────────────────────────
-
-let sdkPromise = null;
-
-function loadSdk() {
-  // Loaded lazily from a CDN so the app needs no build step and demo mode never downloads it.
-  sdkPromise ??= import(CONFIG.ai.sdkUrl)
-    .then((mod) => mod.default ?? mod.Anthropic)
-    .catch((err) => {
-      sdkPromise = null;
-      throw new AIError("sdk", err.message);
-    });
-  return sdkPromise;
-}
-
-async function getClient() {
-  const Anthropic = await loadSdk();
-  // The key never leaves this browser except to go to api.anthropic.com.
-  const client = new Anthropic({ apiKey: getApiKey(), dangerouslyAllowBrowser: true });
-  return { Anthropic, client };
-}
-
-function requestParams(task) {
-  const model = getModel();
-  const params = { model, max_tokens: 16000 };
-  const effort = CONFIG.ai.effort[task];
-  if (effort && supportsEffort(model)) params.output_config = { effort };
-  if (CONFIG.ai.refusalFallback && FALLBACK_MODELS.has(model)) {
-    // If the model declines, the API re-runs the request on Anthropic's recommended fallback model.
-    params.betas = ["server-side-fallback-2026-07-01"];
-    params.fallbacks = "default";
+export function modelLabel(id) {
+  for (const p of Object.values(CONFIG.ai.providers)) {
+    const found = p.models.find((m) => m.id === id || id?.startsWith(`${m.id}-`));
+    if (found) return found.label;
   }
-  return params;
-}
-
-function toAIError(err, Anthropic) {
-  if (err instanceof AIError) return err;
-  const message = err?.error?.error?.message ?? err?.message ?? String(err);
-  if (Anthropic) {
-    if (err instanceof Anthropic.AuthenticationError) return new AIError("auth");
-    if (err instanceof Anthropic.PermissionDeniedError) return new AIError("permission");
-    if (err instanceof Anthropic.RateLimitError) return new AIError("rate");
-    if (err instanceof Anthropic.BadRequestError) return new AIError("badRequest", message);
-    if (err instanceof Anthropic.InternalServerError) return new AIError("server");
-    if (err instanceof Anthropic.APIUserAbortError) return new AIError("aborted");
-    if (err instanceof Anthropic.APIConnectionError) return new AIError("network");
-    if (err instanceof Anthropic.APIError) return new AIError("generic", message);
-  }
-  return new AIError("generic", message);
+  return id;
 }
 
 export function aiErrorMessage(err) {
   const code = err instanceof AIError ? err.code : "generic";
-  const known = ["auth", "permission", "rate", "server", "network", "refusal", "truncated", "sdk", "format", "badRequest", "aborted"];
-  return t(known.includes(code) ? `err.${code}` : "err.generic", { msg: err?.detail || err?.message || "" });
+  const known = ["auth", "permission", "rate", "server", "network", "networkOrKey", "refusal", "truncated", "sdk", "format", "badRequest", "aborted"];
+  return t(known.includes(code) ? `err.${code}` : "err.generic", { msg: err?.detail || err?.message || "", provider: providerLabel() });
 }
 
-function textOf(message) {
-  // A refusal comes back as HTTP 200 with stop_reason "refusal": check before reading content.
-  if (message.stop_reason === "refusal") throw new AIError("refusal");
-  if (message.stop_reason === "max_tokens") throw new AIError("truncated");
-  return message.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text)
-    .join("");
+// Adapters are loaded on demand, so each visitor only downloads the SDK they use.
+const ADAPTERS = {
+  anthropic: () => import("./providers/anthropic.js"),
+  openai: () => import("./providers/openai.js"),
+  gemini: () => import("./providers/gemini.js"),
+};
+
+async function live() {
+  const provider = getProvider();
+  return { adapter: await ADAPTERS[provider](), model: getModel(provider) };
 }
 
-/** One request whose answer must match a JSON schema (structured outputs). */
-async function structured(task, { system, content, schema }) {
-  const { Anthropic, client } = await getClient();
-  const params = requestParams(task);
-  params.output_config = { ...params.output_config, format: { type: "json_schema", schema } };
-  let message;
+async function structured(task, { system, text, image, schema }) {
+  const { adapter, model } = await live();
+  const { json, model: usedModel } = await adapter.structured({ model, effort: CONFIG.ai.effort[task], system, text, image, schema });
   try {
-    message = await client.beta.messages.create({ ...params, system, messages: [{ role: "user", content }] });
-  } catch (err) {
-    throw toAIError(err, Anthropic);
-  }
-  try {
-    return { data: JSON.parse(textOf(message)), model: message.model };
-  } catch (err) {
-    throw err instanceof AIError ? err : new AIError("format");
+    return { data: JSON.parse(json), model: usedModel ?? model };
+  } catch {
+    throw new AIError("format");
   }
 }
 
@@ -136,6 +82,7 @@ const ANALYSIS_PROMPT = `Review the inventory and tell me what to do.
 - insights: 1 to 3 short observations a busy person would miss: dead stock and the money tied up in it, rising or falling usage, unusual spikes. No generic advice.
 - headline: at most 10 words. summary: at most 2 sentences.`;
 
+// Schemas follow the strictest common subset: every field required, no extra properties.
 const ANALYSIS_SCHEMA = {
   type: "object",
   properties: {
@@ -222,7 +169,7 @@ export async function analyzeInventory() {
 
   const snapshot = buildSnapshot(state, forecasts, getLang());
   const system = `You are the inventory assistant built into ${CONFIG.appName}. Today is ${snapshot.today}. Write all text in ${language()}.\n\n${inventoryContext(snapshot)}`;
-  const { data, model } = await structured("analysis", { system, content: ANALYSIS_PROMPT, schema: ANALYSIS_SCHEMA });
+  const { data, model } = await structured("analysis", { system, text: ANALYSIS_PROMPT, schema: ANALYSIS_SCHEMA });
   return { result: data, demo: false, model };
 }
 
@@ -241,7 +188,7 @@ Rules:
 - qty: a whole number above 0 ("a couple" = 2, "a box of 12" = 12).
 - note: destination, person or reason if mentioned (a few words), otherwise "".
 - unclear: if part of the message can't be read as a stock movement, explain briefly; otherwise "".`;
-  const { data } = await structured("parse", { system, content: `Note:\n"""${text}"""`, schema: PARSE_SCHEMA });
+  const { data } = await structured("parse", { system, text: `Note:\n"""${text}"""`, schema: PARSE_SCHEMA });
   return { movements: data.movements, unclear: data.unclear, demo: false };
 }
 
@@ -261,11 +208,12 @@ Extract every product line that was received:
 - item_id: the id of the matching inventory item, or "" for a product that isn't in the inventory.
 - supplier, reference (document number) and document_date (YYYY-MM-DD) from the header; "" when missing.
 - notes: "" unless something needs the user's attention (unreadable lines, not a delivery document, totals that don't add up).`;
-  const content = [
-    { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-    { type: "text", text: "Extract the lines of this document." },
-  ];
-  const { data } = await structured("photo", { system, content, schema: PHOTO_SCHEMA });
+  const { data } = await structured("photo", {
+    system,
+    text: "Extract the lines of this document.",
+    image: { base64, mediaType },
+    schema: PHOTO_SCHEMA,
+  });
   return { ...data, demo: false };
 }
 
@@ -295,32 +243,13 @@ How to answer:
 - Purchase-order drafts: address them to the item's supplier, group items from the same supplier, use suggested_order_qty unless the user gives a quantity, and ask for delivery before the stockout date. Make them ready to copy and send.
 - Reply in the language the user writes in (default: ${language()}).`;
 
-  const { Anthropic, client } = await getClient();
-  try {
-    const stream = client.beta.messages.stream({ ...requestParams("chat"), system, messages: history }, { signal });
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") onText(event.delta.text);
-    }
-    const final = await stream.finalMessage();
-    if (final.stop_reason === "refusal") throw new AIError("refusal");
-    return { demo: false, model: final.model };
-  } catch (err) {
-    throw toAIError(err, Anthropic);
-  }
+  const { adapter, model } = await live();
+  const result = await adapter.stream({ model, effort: CONFIG.ai.effort.chat, system, history, onText, signal });
+  return { demo: false, model: result.model ?? model };
 }
 
 /** Tiny request to check the key and model. Returns the model that answered. */
 export async function testConnection() {
-  const { Anthropic, client } = await getClient();
-  try {
-    const message = await client.beta.messages.create({
-      ...requestParams("parse"),
-      max_tokens: 1024,
-      messages: [{ role: "user", content: "Reply with just: OK" }],
-    });
-    textOf(message);
-    return message.model;
-  } catch (err) {
-    throw toAIError(err, Anthropic);
-  }
+  const { adapter, model } = await live();
+  return (await adapter.test({ model })) ?? model;
 }

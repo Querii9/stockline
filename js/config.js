@@ -39,17 +39,56 @@ export const CONFIG = {
   },
 
   ai: {
-    model: "claude-opus-5",
-    models: [
-      { id: "claude-opus-5", label: "Claude Opus 5" },
-      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
-      { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
-    ],
-    // Reasoning effort per feature: "low" | "medium" | "high" (lower = faster & cheaper)
+    // Provider used by default. Each visitor can switch it in ⚙️ Settings.
+    provider: "anthropic",
+    // Reasoning effort per feature: "low" | "medium" | "high" (lower = faster & cheaper).
+    // Mapped to each provider's own setting (effort / reasoning.effort / thinking_level).
     effort: { analysis: "medium", parse: "low", photo: "medium", chat: "medium" },
-    // If the model declines a request, Anthropic retries it on its recommended fallback model.
-    refusalFallback: true,
-    // Official Anthropic SDK, loaded from a CDN only when AI is used (no build step needed).
-    sdkUrl: "https://esm.sh/@anthropic-ai/sdk@0.127.0",
+
+    // Every provider's official SDK is loaded from a CDN only when it's used (no build step).
+    providers: {
+      anthropic: {
+        label: "Claude",
+        company: "Anthropic",
+        model: "claude-opus-5",
+        models: [
+          { id: "claude-opus-5", label: "Claude Opus 5" },
+          { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
+          { id: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+        ],
+        keyUrl: "https://console.anthropic.com/settings/keys",
+        keyHint: "sk-ant-…",
+        sdkUrl: "https://esm.sh/@anthropic-ai/sdk@0.127.0",
+        // If the model declines a request, Anthropic retries it on its recommended fallback model.
+        refusalFallback: true,
+      },
+      openai: {
+        label: "OpenAI",
+        company: "OpenAI",
+        model: "gpt-5.6",
+        models: [
+          { id: "gpt-5.6", label: "GPT-5.6" },
+          { id: "gpt-6-astra", label: "GPT-6 Astra" },
+          { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+          { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+        ],
+        keyUrl: "https://platform.openai.com/api-keys",
+        keyHint: "sk-…",
+        sdkUrl: "https://esm.sh/openai@7.21.0",
+      },
+      gemini: {
+        label: "Gemini",
+        company: "Google",
+        model: "gemini-3.8-flash",
+        models: [
+          { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+          { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (preview)" },
+          { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
+        ],
+        keyUrl: "https://aistudio.google.com/apikey",
+        keyHint: "AIza…",
+        sdkUrl: "https://esm.sh/@google/genai@2.24.0",
+      },
+    },
   },
 };

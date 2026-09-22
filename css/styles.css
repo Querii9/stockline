@@ -1540,6 +1540,21 @@ dialog.modal::backdrop {
   display: flex;
   gap: 8px;
 }
+.provider-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.provider-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.key-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--ok);
+}
 
 /* ── Toasts ─────────────────────────────────────────────────────────── */
 .toasts {
