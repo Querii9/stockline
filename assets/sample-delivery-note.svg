@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1040" viewBox="0 0 800 1040" font-family="Arial, Helvetica, sans-serif">
+  <!-- Fictional delivery note used by the "Try the sample note" demo. -->
+  <rect width="800" height="1040" fill="#fbfaf6"/>
+  <rect x="24" y="24" width="752" height="992" fill="#fffefb" stroke="#e4e0d6" stroke-width="2"/>
+
+  <!-- Header -->
+  <rect x="56" y="60" width="54" height="54" rx="10" fill="#1f4e79"/>
+  <text x="83" y="96" fill="#fff" font-size="26" font-weight="700" text-anchor="middle">SE</text>
+  <text x="126" y="82" fill="#1f4e79" font-size="24" font-weight="700">SUMINISTROS EJEMPLO, S.L.</text>
+  <text x="126" y="106" fill="#555" font-size="14">C/ de l'Exemple, 12 · 08000 Barcelona · CIF B00000000</text>
+
+  <text x="744" y="82" fill="#222" font-size="26" font-weight="700" text-anchor="end">ALBARÁN</text>
+  <text x="744" y="106" fill="#555" font-size="14" text-anchor="end">de entrega</text>
+
+  <line x1="56" y1="138" x2="744" y2="138" stroke="#1f4e79" stroke-width="3"/>
+
+  <!-- Document data -->
+  <text x="56" y="176" fill="#777" font-size="13">Nº ALBARÁN</text>
+  <text x="56" y="198" fill="#222" font-size="18" font-weight="700">ALB-2026-0917</text>
+  <text x="270" y="176" fill="#777" font-size="13">FECHA</text>
+  <text x="270" y="198" fill="#222" font-size="18" font-weight="700">15/09/2026</text>
+  <text x="440" y="176" fill="#777" font-size="13">CLIENTE</text>
+  <text x="440" y="198" fill="#222" font-size="18" font-weight="700">StockLine Demo</text>
+  <text x="440" y="218" fill="#555" font-size="13">Almacén central · Muelle 2</text>
+
+  <!-- Table -->
+  <rect x="56" y="248" width="688" height="36" fill="#1f4e79"/>
+  <g fill="#fff" font-size="13" font-weight="700">
+    <text x="68" y="271">REF.</text>
+    <text x="160" y="271">DESCRIPCIÓN</text>
+    <text x="538" y="271" text-anchor="end">CANT.</text>
+    <text x="630" y="271" text-anchor="end">PRECIO</text>
+    <text x="732" y="271" text-anchor="end">IMPORTE</text>
+  </g>
+
+  <g font-size="15" fill="#222">
+    <rect x="56" y="284" width="688" height="44" fill="#f4f6f9"/>
+    <text x="68" y="312" fill="#555">BT-500</text>
+    <text x="160" y="312">Auriculares Bluetooth BT-500</text>
+    <text x="538" y="312" text-anchor="end" font-weight="700">20</text>
+    <text x="630" y="312" text-anchor="end">24,90</text>
+    <text x="732" y="312" text-anchor="end">498,00</text>
+
+    <text x="68" y="356" fill="#555">UC-1M</text>
+    <text x="160" y="356">Cable USB-C 1 m</text>
+    <text x="538" y="356" text-anchor="end" font-weight="700">50</text>
+    <text x="630" y="356" text-anchor="end">3,20</text>
+    <text x="732" y="356" text-anchor="end">160,00</text>
+
+    <rect x="56" y="372" width="688" height="44" fill="#f4f6f9"/>
+    <text x="68" y="400" fill="#555">GT-09</text>
+    <text x="160" y="400">Guantes de trabajo T9 (par)</text>
+    <text x="538" y="400" text-anchor="end" font-weight="700">30</text>
+    <text x="630" y="400" text-anchor="end">2,10</text>
+    <text x="732" y="400" text-anchor="end">63,00</text>
+
+    <text x="68" y="444" fill="#555">CE-48</text>
+    <text x="160" y="444">Cinta de embalar 48 mm (rollo)</text>
+    <text x="538" y="444" text-anchor="end" font-weight="700">36</text>
+    <text x="630" y="444" text-anchor="end">1,35</text>
+    <text x="732" y="444" text-anchor="end">48,60</text>
+
+    <rect x="56" y="460" width="688" height="44" fill="#f4f6f9"/>
+    <text x="68" y="488" fill="#555">AD-HD</text>
+    <text x="160" y="488">Adaptador USB-C a HDMI</text>
+    <text x="538" y="488" text-anchor="end" font-weight="700">10</text>
+    <text x="630" y="488" text-anchor="end">12,50</text>
+    <text x="732" y="488" text-anchor="end">125,00</text>
+  </g>
+  <line x1="56" y1="520" x2="744" y2="520" stroke="#ccc" stroke-width="1.5"/>
+
+  <!-- Totals -->
+  <g font-size="15" fill="#333">
+    <text x="600" y="556" text-anchor="end">Base imponible</text>
+    <text x="732" y="556" text-anchor="end">894,60 €</text>
+    <text x="600" y="584" text-anchor="end">IVA 21 %</text>
+    <text x="732" y="584" text-anchor="end">187,87 €</text>
+  </g>
+  <rect x="470" y="600" width="274" height="44" fill="#1f4e79"/>
+  <text x="600" y="628" fill="#fff" font-size="17" font-weight="700" text-anchor="end">TOTAL</text>
+  <text x="732" y="628" fill="#fff" font-size="17" font-weight="700" text-anchor="end">1.082,47 €</text>
+
+  <!-- Notes & signature -->
+  <text x="56" y="700" fill="#777" font-size="13">OBSERVACIONES</text>
+  <text x="56" y="724" fill="#333" font-size="15">Entrega completa. 3 bultos.</text>
+
+  <rect x="56" y="790" width="300" height="130" fill="none" stroke="#bbb" stroke-dasharray="6 5"/>
+  <text x="68" y="812" fill="#777" font-size="13">RECIBIDO POR (firma y sello)</text>
+  <path d="M90 880 C 120 840, 140 900, 170 860 S 220 850, 240 875 S 290 860, 320 850" fill="none" stroke="#2a3f8f" stroke-width="2.5" stroke-linecap="round"/>
+
+  <text x="744" y="980" fill="#aaa" font-size="12" text-anchor="end">Documento ficticio de demostración · StockLine</text>
+</svg>
